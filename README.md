@@ -1,5 +1,8 @@
 # Course Q&A Assistant
 
+**Reproducible versions:** [Dependency versions and exact setup](DEPENDENCIES.md).
+
+
 [Open the application](https://subhashdixit.github.io/course-qa-assistant/) · [Report an issue](https://github.com/subhashdixit/course-qa-assistant/issues)
 
 Search the historical course FAQ corpus and inspect the exact evidence behind an answer.
