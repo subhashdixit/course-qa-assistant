@@ -1,87 +1,114 @@
+# Course Q&A Assistant
 
-# Codebasics Q&A: Question and Answer System Based on Google Palm LLM and Langchain for E-learning company  
+[Open the application](https://subhashdixit.github.io/course-qa-assistant/) · [Report an issue](https://github.com/subhashdixit/course-qa-assistant/issues)
 
-This is an end to end LLM project based on Google Palm and Langchain. We are building a Q&A system for an e-learning company called codebasics (website: codebasics.io). Codebasics sells data related courses and bootcamps. They have thousands of learners who uses discord server or email to ask questions. This system will provide a streamlit based user interface for students where they can ask questions and get answers. 
+Search the historical course FAQ corpus and inspect the exact evidence behind an answer.
 
-![](codebasics_q_and_a.png)
+## What the finished application does
 
-## Project Highlights
+- A complete HTML/JavaScript workflow with included example, file import, editable outputs and local export.
+- Local evidence/extraction mode with explicit algorithm labels.
+- Keyless local open-model generation with explicit downloads, progress and cancellation.
+- Input size limits, provider errors and source/citation checks shown in the UI.
 
-- Use a real CSV file of FAQs that Codebasics company is using right now. 
-- Their human staff will use this file to assist their course learners.
-- We will build an LLM based question and answer system that can reduce the workload of their human staff.
-- Students should be able to use this system to ask questions directly and get answers within seconds
+## Use the application step by step
 
-## You will learn following,
-  - Langchain + Google Palm: LLM based Q&A
-  - Streamlit: UI
-  - Huggingface instructor embeddings: Text embeddings
-  - FAISS: Vector databse
+1. Open the live application. Read the input labels and scope panel.
+2. Start with the included example to understand the output.
+3. Replace it with your own supported input. Files are processed locally unless you explicitly choose a server feature and consent to it.
+4. Run the analysis and inspect the visual output together with its limitations.
+5. Export your results when the tool offers a download. Keep your own copy; a browser tab is not a durable data store.
 
-## Installation
+## Concepts, algorithms and interpretation
 
-1.Clone this repository to your local machine using:
+### Retrieval and generation have different jobs
+
+Local BM25 ranks source excerpts using query-term rarity and document-length normalization (k1=1.2, b=0.75). It returns exact evidence and scores; a high lexical score is not an answer-confidence probability. An empty match means no evidence found. It cannot understand all paraphrases or resolve contradictory facts. Generation asks a downloaded open model to write an answer from supplied evidence in the browser; tool-specific instructions, no external execution tools and bounded output keep the workflow inspectable. An LLM may still hallucinate or follow malicious text, so source checking remains essential.
+
+### Extraction and preprocessing
+
+PDF.js reads selectable text page by page and preserves page markers. Scans have no guaranteed text layer. The local summarizer scores sentences by term frequency, normalized for length, and restores their original order. It copies source sentences rather than inventing an abstractive summary; it can miss rare but important details. OCR estimates characters from pixels and can misread punctuation, amounts and handwriting. Local invoice parsing is heuristic: missing fields remain null; subtotal + tax is compared with total, but discounts, shipping or multiple tax lines may require correction. Passing arithmetic does not authenticate an invoice.
+
+### Free open models: no key required
+
+Generation runs in a browser Web Worker with Transformers.js 4.3.2 (version-pinned official npm distribution via jsDelivr) and vendored ONNX Runtime Web WASM assets. The public library download is a network dependency; it receives routine connection metadata, not prompts. Text choices are [SmolLM2-135M-Instruct](https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct) (~137 MB q8 weights) and [Qwen2.5-0.5B-Instruct ONNX](https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct) (~512 MB). Image tools also offer [SmolVLM-256M-Instruct](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct) (~260 MB across three q8 components). Model revisions are pinned in `site/model-policy.js`; these models are Apache-2.0 licensed. Read each model card's limitations.
+
+The first run downloads public weights/tokenizers from Hugging Face plus the same-origin WASM runtime. It requires network bandwidth, browser storage and sufficient RAM; memory use exceeds file size. Later runs may reuse browser cache. No API account/key, paid inference subscription or hosted model server is required. Browser cache eviction or model-host availability can require a fresh download. No perpetual hosting guarantee is implied.
+
+Prompts and images stay in this browser's worker. There is no model-inference API request. The user explicitly starts the model download, progress is shown, and Stop terminates the worker. CPU/WASM uses one thread to work without Pages cross-origin-isolation headers. Model generation is limited to 3,500 evidence characters, 600 question characters, 1,800 input tokens and 160 new tokens; longer inputs must be shortened explicitly, rather than silently treated as fully read. Vision inputs are resized proportionally to a maximum 512-pixel edge. Detailed invoice OCR is better served by the separate local OCR/field-validation path.
+
+These are small experimental models. Generated text can be repetitive, incomplete, unsupported or inconsistent with evidence. Citations are checked for known IDs, not factual entailment. Never infer that a generated number is correct because it looks plausible. The deterministic extractive/retrieval modes remain the more traceable option. Images are analyzed, not generated.
+
+## Architecture and data flow
+
+```mermaid
+flowchart LR
+  Document[Local text / PDF / image] --> Extract[Local extraction / OCR / retrieval]
+  Weights[Public pinned open-model files] --> Worker[Local WASM model worker]
+  Extract --> Worker
+  Extract --> Review[Editable source-based result]
+  Worker --> Review
+  Review --> Export[Local export]
+  CI[Tests + lint + format] --> Pages[Publish site on GitHub Pages]
+```
+
+The Render gateway is used only by the research workbench's fixed-source news reader in the default setup. Its legacy optional Gemini adapter remains available in source for comparison, but the seven interfaces do not need it or call it for generation. No Gemini key setup is required. Qwen is the default text option; the smaller SmolLM2 option is a lower-memory experiment with substantially weaker instruction following. Generated numbers not found in evidence are flagged conservatively; this check is not mathematical or factual verification. A sleeping news gateway can delay feed retrieval; local document/model tools remain independent.
+
+## Run locally from scratch
+
+Install Node.js 22 and Python 3 for a local static HTTP server. Python is not a production backend for this app.
 
 ```bash
-  git clone https://github.com/codebasics/langchain.git
-```
-2.Navigate to the project directory:
-
-```bash
-  cd 3_project_codebasics_q_and_a
-```
-3. Install the required dependencies using pip:
-
-```bash
-  pip install -r requirements.txt
-```
-4.Acquire an api key through makersuite.google.com and put it in .env file
-
-```bash
-  GOOGLE_API_KEY="your_api_key_here"
-```
-## Usage
-
-1. Run the Streamlit app by executing:
-```bash
-streamlit run main.py
-
+git clone https://github.com/subhashdixit/course-qa-assistant.git
+cd course-qa-assistant
+npm ci
+npm test
+npm run lint
+npm run format
+npm run check
+python3 -m http.server 8000 --directory site
 ```
 
-2.The web app will open in your browser.
+Open http://localhost:8000. Use HTTP rather than double-clicking HTML so that module imports and local data fetches work consistently. No production API secret belongs in `site/`.
 
-- To create a knowledebase of FAQs, click on Create Knolwedge Base button. It will take some time before knowledgebase is created so please wait.
+## Coding structure
 
-- Once knowledge base is created you will see a directory called faiss_index in your current folder
+```text
+site/
+  index.html       # accessible application interface
+  styles.css       # responsive design
+  app.js           # interface orchestration
+  engine.js        # validated calculations; no DOM dependency
+  ui.js            # chart, CSV and download helpers
+tests/             # behavior and boundary cases
+.github/workflows/pages.yml
+archive/           # original README and retired workflows where present
+```
 
-- Now you are ready to ask questions. Type your question in Question box and hit Enter
+Original source files, notebooks and historical artifacts remain in the repository for comparison. The release publishes only `site/`; old source directories and datasets are not automatically exposed by the application.
 
-## Sample Questions
-  - Do you guys provide internship and also do you offer EMI payments?
-  - Do you have javascript course?
-  - Should I learn power bi or tableau?
-  - I've a MAC computer. Can I use powerbi on it?
-  - I don't see power pivot. how can I enable it?
+## CI/CD and deployment
 
-## Project Structure
+CI means continuous integration: each pull request and main-branch push installs exact lockfile dependencies, checks formatting, lints JavaScript, runs meaningful behavior tests and checks module syntax. A failed check stops publishing. CD means continuous deployment: after the required `Build and test` check succeeds on `main`, GitHub Actions uploads `site/` and GitHub Pages serves it over HTTPS.
 
-- main.py: The main Streamlit application script.
-- langchain_helper.py: This has all the langchain code
-- requirements.txt: A list of required Python packages for the project.
-- .env: Configuration file for storing your Google API key.
+The workflow uses pinned action revisions, minimal permissions and a protected main branch. Publishing jobs need Pages/OIDC permissions; test jobs only read source. Feature branches are deleted after merge. Static Pages hosting needs no always-running Python process, but cannot hide secrets, host a Flask process or provide durable server storage.
 
-### Commands for virtual environment:
- 1. To create new virtual environment:
-""" conda create -p venv python=3.9 -y 
-"""
- 2. To activate new virtual environment:
- """
-    For command promt: conda activate venv/
-    For Git Bash: source activate venv/
-"""
-### Command to install requirements.txt file:
- 1. pip install -r requirements.txt
+To set up a fork, enable GitHub Pages with **GitHub Actions** as its source and allow the repository's workflow to run. Repository Settings → Pages shows the deployment URL. If renaming the repository, update the README URL and any absolute links; application resources use relative paths. Check Actions logs if publishing fails.
 
-### To run this app in local:
- 1. Install the required libraris using the command "pip install -r requirements.txt".
- 2. Run the streamlit app using the command "streamlit run streamlit_app.py".
+### Release, monitoring and rollback
+
+A commit identifies exactly which source was deployed. Inspect the Actions deployment and test results before sharing the link. After publishing, open the page, run its example and check exports; a successful HTTP response alone is not a functional test. For rollback, revert the faulty merge in a new PR, pass checks, and merge the revert. This triggers the same reproducible publishing process. Avoid force-pushing protected main or deleting history. Browser caches can retain an older asset briefly; refresh after a deployment.
+
+### Docker and alternatives
+
+Docker packages code and dependencies into a reproducible runtime. This static app does not require a container: Pages serves the same versioned files directly, with less operating work and no container cold starts. A container becomes useful if adding a Python backend; then secrets, patches, resource costs and persistent storage require separate management.
+
+## Data provenance and attribution
+
+Original source files are retained. Default analytical examples and the default invoice/profile are fictional. PDF.js 6.4.299 is Apache-2.0 licensed; its license is vendored with the worker. The historical Codebasics FAQ CSV is the existing repository corpus, not a current statement of fees, refunds or company policy. The source question and answer are shown together for attribution. 
+
+## Practical limits
+
+Text/context ≤40,000 characters; local generation questions ≤600; local documents ≤5 MiB/60 pages; images ≤2 MiB/16 megapixels. Only PNG/JPEG for image analysis. No persistent document store or cross-device history. Source extraction can change reading order in complex PDFs. OCR and AI output require manual verification. Images are analyzed, not generated. No API key is needed for any default generation function.
+
+The test suite checks calculation contracts and invalid inputs. It cannot establish that an input dataset is representative, that a heuristic is scientifically correct for every domain, or that a result is suitable for an automated consequential decision. Read the original source alongside the maintained browser implementation when comparing behavior.
